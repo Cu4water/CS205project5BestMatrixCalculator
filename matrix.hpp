@@ -2,54 +2,127 @@
 #define IOSTREAM
 #include<iostream>
 #endif
+#ifndef CSTRING
+#define CSTRING
+#include<cstring>
+#endif
 template<class T>
 class Matrix {
 
 private:
-    int row;
-    int col;
-    int channel;
-    T *nums;
-    int ROIBeginRow;
-    int ROIBeginCol;
-    int ROIRow;
-    int ROICol;
-    int span;
-    static int num_matrices;
-    int* ref_count;
+    size_t r,c,channel;
+    T *num;
+    int* used_time;
+    // int ROIc,ROIr;感兴趣区域，但是对于简单的线性变换&矩阵乘没有用
 
 public:
-    //返回矩阵对象存在个数
-    static int Matrix_num();
-    //返回共用该元素数组矩阵对象个数
-    int get_ref_count(){
-        return ref_count[0];
+    int get_used_time() {
+        return *used_time;
     }
 
-    int getRow(){
-        return row;
+    int getRow() {
+        return r;
     }
-    int getCol(){
-        return col;
+    int getCol() { 
+        return c;
     }
-    int getChannel(){
+    int getChannel() {
         return channel;
     }
-    int getSpan(){
-        return span;
-    }
 
-    //构造器
-    //根据传入数组来创建矩阵的构造函数
-    Matrix(int row = 3, int col = 3, int channel = 1, T* nums = nullptr, int ROIBeginRow = 0, int ROIBeginCol = 0, int ROIRow = 0, int ROICol = 0, int *ref_count = nullptr, int span = 0);
-    //根据传入文件流来创建矩阵的构造函数
-    Matrix(int row, int col, int channel, std::ifstream & fin, int size);
-    
-    //向量点乘
-    static T dotmul(int r1, T* nums1, int r2, T* nums2);
-
-    //复制构造器
-    Matrix(const Matrix&);
-    //析构函数
+    Matrix(size_t row=0, size_t col=0, size_t channel=1, T* nums = NULL);
+    Matrix(size_t row=0, size_t col=0, size_t channel=1, std::ifstream & fin=NULL);
+    Matrix(const Matrix& src);
     ~Matrix();
+    
+    Matrix operator!() const;//reverse
+    Matrix operator+(T num) const;
+    Matrix operator+(const Matrix &b)const;
+    Matrix& operator+=(T num);
+    Matrix& operator+=(const Matrix &b);
+    Matrix operator-(T num) const;
+    Matrix operator-(const Matrix &b)const;
+    Matrix& operator-=(T num);
+    Matrix& operator-=(const Matrix &b);
+    Matrix operator*(T num) const;
+    Matrix operator*(const Matrix &b)const;
+    Matrix& operator*=(T num);
+    Matrix& operator*=(const Matrix &b);
+    
+
+    template<class Type>
+    friend std::ostream & operator<<(std::ostream &os, Matrix<Type>& mat);
 };
+
+template<typename T>
+Matrix<T>::Matrix(size_t row=0, size_t col=0, size_t channel=1, T* num = NULL) {
+    if(row < 0 || col < 0) {
+        std::cerr << "Illegal input row or col" << std::endl;
+        row=col=0;
+    }
+    if(channel < 1) {
+        std::cerr << "Illegal input channel" << std::endl;
+        channel=1;
+    }
+    this ->used_time = new int;
+    *(this ->used_time) = 1;
+    this ->r = row;
+    this ->c = col;
+    this ->channel = channel;
+    this ->num = new T[row * col * channel];
+    if(num) {
+        memcpy(this ->num, num, sizeof(T)*row*col*channel);
+    }
+}
+
+template<typename T>
+Matrix<T>::Matrix(size_t row=0, size_t col=0, size_t channel=1, std::ifstream & fin=NULL) {
+    if(row < 0 || col < 0) {
+        std::cerr << "Illegal input row or col" << std::endl;
+        row=col=0;
+    }
+    if(channel < 1) {
+        std::cerr << "Illegal input channel" << std::endl;
+        channel=1;
+    }
+    this ->used_time = new int;
+    *(this ->used_time) = 1;
+    this ->r = row;
+    this ->c = col;
+    this ->channel = channel;
+    this ->num = new T[row * col * channel];
+    if(fin == NULL) {
+        std::cerr << "Illegal input file" << std::endl;
+    }
+    else {
+        while(!fin.eof()) {
+            std::string line;
+            getline(fin, line);
+            std::stringstream ipt(line);
+            T tmp;
+            ize_t pos=0;
+            while(ipt >> tmp) {
+                this -> nums[pos++] = tmp;
+            }    
+        }
+    }
+}
+
+template<typename T>
+Matrix<T>::Matrix(const Matrix& src) {
+    this ->r = src ->r;
+    this ->c = src ->c;
+    this ->channel = src ->channel;
+    this ->used_time = src ->used_time;
+    this ->num = src ->num;
+    *(this ->used_time)++;
+}
+
+template<typename T>
+Matrix<T>::~Matrix() {
+    *(this ->used_time)--;
+    if(*(this ->used_time) == 0) {
+        delete[] this -> used_time;
+        delete[] this -> nums;
+    }
+}
